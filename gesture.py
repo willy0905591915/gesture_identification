@@ -52,7 +52,6 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # Adjust the region of interest
         roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
 
@@ -70,20 +69,44 @@ def gen_frames():
         if len(contours) > 0:
             cnt = max(contours, key=cv2.contourArea)
             hull = cv2.convexHull(cnt)
-            defects = cv2.convexityDefects(cv2.convexHull(cnt), hull)
-            if defects is not None:
-                num_defects = len(defects)
-                if num_defects > 3:
-                    text = 'Paper'
-                elif num_defects == 2:
-                    text = 'Scissors'
-                else:
-                    text = 'Rock'
+            if len(hull) > 2:  # Ensure hull has more than two points which is required for convexityDefects
+                defects = cv2.convexityDefects(cnt, hull)
+                if defects is not None:
+                    num_defects = len(defects)
+                    if num_defects > 3:
+                        text = 'Paper'
+                    elif num_defects == 2:
+                        text = 'Scissors'
+                    else:
+                        text = 'Rock'
+            else:
+                text = "Not enough points for gesture"
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
+@app.route("/", methods=['GET'])
+def get_stream_html():
+    return render_template_string(template)
+
+@app.route('/api/stream')
+def video_stream():
+    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
+
+if __name__ == "__main__":
+    cam = Picamera2()
+    config = cam.create_video_configuration(
+        {'size': (1920, 1080), 'format': 'XBGR8888'},
+        transform=Transform(vflip=1),
+        controls={'NoiseReductionMode': controls.draft.NoiseReductionModeEnum.HighQuality, 'Sharpness': 1.5}
+    )
+    cam.configure(config)
+    cam.start_recording(JpegEncoder(), FileOutput(output), Quality.VERY_HIGH)
+    app.run(host='0.0.0.0')
+    cam.stop()
+
 
 @app.route("/", methods=['GET'])
 def get_stream_html():
