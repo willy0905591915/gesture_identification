@@ -102,7 +102,7 @@ def gen_frames():
 
                 if num_defects == 0:
                     text = 'Rock'
-                elif num_defects == 1 or num_defects == 2:
+                elif num_defects == 2:
                     text = 'Scissors'
                 elif num_defects >= 3:
                     text = 'Paper'
