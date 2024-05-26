@@ -85,14 +85,14 @@ def gen_frames():
                     c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
                     angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
                     
-                    if angle < 60:  # Adjust the angle threshold here
+                    if angle < 80:  # Adjust the angle threshold here
                         num_defects += 1
 
-            if num_defects == 0:
+            if num_defects == 0 or num_defects == 1:
                 text = 'Rock'
             elif num_defects == 2:
                 text = 'Scissors'
-            elif num_defects > 3:
+            elif num_defects > 2:
                 text = 'Paper'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
