@@ -52,19 +52,13 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # Adjust the ROI to be larger and slightly to the right
-        roi_x_start = center_x  # Start from the center and move to the right
-        roi_y_start = center_y - 200  # Start 200 pixels above the center
-        roi_width = 400  # Width of the ROI
-        roi_height = 400  # Height of the ROI
-
-        roi = img[roi_y_start:roi_y_start + roi_height, roi_x_start:roi_x_start + roi_width]
-        cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 0)
+        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
+        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)  # Adjusted HSV values for better skin detection
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
-        
+
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
         mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
@@ -73,19 +67,38 @@ def gen_frames():
 
         text = "No gesture detected"
         if len(contours) > 0:
-            cnt = max(contours, key=cv2.contourArea)
-            if len(cnt) >= 3:  # Ensure there are at least 3 points in the contour to form a valid hull
-                hull = cv2.convexHull(cnt, returnPoints=False)
-                if len(hull) > 3:  # Ensure hull has more than three points which is required for convexityDefects
-                    defects = cv2.convexityDefects(cnt, hull)
-                    if defects is not None:
-                        num_defects = len(defects)
-                        if num_defects > 3:
-                            text = 'Paper'
-                        elif num_defects == 2:
-                            text = 'Scissors'
-                        else:
-                            text = 'Rock'
+            cnt = max(contours, key=lambda x: cv2.contourArea(x))
+            epsilon = 0.0005 * cv2.arcLength(cnt, True)
+            approx = cv2.approxPolyDP(cnt, epsilon, True)
+            hull = cv2.convexHull(cnt)
+            areahull = cv2.contourArea(hull)
+            areacnt = cv2.contourArea(cnt)
+            arearatio = ((areahull - areacnt) / areacnt) * 100
+            hull = cv2.convexHull(approx, returnPoints=False)
+            defects = cv2.convexityDefects(approx, hull)
+
+            if defects is not None:
+                num_defects = 0
+                for i in range(defects.shape[0]):  # Counting the number of defects
+                    s, e, f, d = defects[i, 0]
+                    start = tuple(approx[s][0])
+                    end = tuple(approx[e][0])
+                    far = tuple(approx[f][0])
+                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
+                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
+                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
+                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
+
+                    # The angle must be less than 90 degrees to count as a defect
+                    if angle <= 90:
+                        num_defects += 1
+
+                if num_defects == 0:
+                    text = 'Rock'
+                elif num_defects == 2:
+                    text = 'Scissors'
+                elif num_defects >= 4:
+                    text = 'Paper'
             else:
                 text = "Not enough points for gesture"
 
