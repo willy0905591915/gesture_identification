@@ -68,17 +68,18 @@ def gen_frames():
         text = "No gesture detected"
         if len(contours) > 0:
             cnt = max(contours, key=cv2.contourArea)
-            hull = cv2.convexHull(cnt)
-            if len(hull) > 2:  # Ensure hull has more than two points which is required for convexityDefects
-                defects = cv2.convexityDefects(cnt, hull)
-                if defects is not None:
-                    num_defects = len(defects)
-                    if num_defects > 3:
-                        text = 'Paper'
-                    elif num_defects == 2:
-                        text = 'Scissors'
-                    else:
-                        text = 'Rock'
+            if len(cnt) >= 3:  # Ensure there are at least 3 points in the contour to form a valid hull
+                hull = cv2.convexHull(cnt)
+                if len(hull) > 2:  # Ensure hull has more than two points which is required for convexityDefects
+                    defects = cv2.convexityDefects(cnt, hull)
+                    if defects is not None:
+                        num_defects = len(defects)
+                        if num_defects > 3:
+                            text = 'Paper'
+                        elif num_defects == 2:
+                            text = 'Scissors'
+                        else:
+                            text = 'Rock'
             else:
                 text = "Not enough points for gesture"
 
@@ -86,6 +87,7 @@ def gen_frames():
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 
 @app.route("/", methods=['GET'])
 def get_stream_html():
