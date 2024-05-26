@@ -11,13 +11,13 @@ import numpy as np
 
 # HTML Template
 template = '''
-    <!DOCTYPE html>
-    <html lang="en">
-        <body>
-            <img src="{{ url_for('video_stream') }}" width="100%">
-        </body>
-    </html>
-    '''
+<!DOCTYPE html>
+<html lang="en">
+    <body>
+        <img src="{{ url_for('video_stream') }}" width="100%">
+    </body>
+</html>
+'''
 
 app = Flask(__name__)
 
@@ -51,27 +51,27 @@ def gen_frames():
         img = cv2.imdecode(np.frombuffer(frame, dtype=np.uint8), cv2.IMREAD_COLOR)
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
-        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
-        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
+
+        # Adjust the region of interest to the left side of the frame
+        roi = img[center_y-150:center_y+150, 50:350]
+        cv2.rectangle(img, (50, center_y-150), (350, center_y+150), (0, 255, 0), 0)
+
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 48, 80], dtype=np.uint8)  # Adjusted HSV range for skin detection
+        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
+        
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
         mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
+
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        text = "No gesture detected"  # Default text
-        
+        text = "No gesture detected"  # Default text if no contours found
         if len(contours) > 0:
             cnt = max(contours, key=cv2.contourArea)
             approx = cv2.approxPolyDP(cnt, 0.0005 * cv2.arcLength(cnt, True), True)
             hull = cv2.convexHull(cnt)
-            areahull = cv2.contourArea(hull)
-            areacnt = cv2.contourArea(cnt)
-            arearatio = ((areahull - areacnt) / areacnt) * 100
-            hull = cv2.convexHull(approx, returnPoints=False)
-            defects = cv2.convexityDefects(approx, hull)
+            defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
             l = 0
             
             if defects is not None:
@@ -91,25 +91,13 @@ def gen_frames():
                     
                     cv2.line(roi, start, end, [0, 255, 0], 2)
                 
-            # 根據手指數目顯示不同的信息
-            if l == 1:
-                if arearatio < 12:
-                    text = '0'
-                elif arearatio < 17.5:
-                    text = 'Best of luck'
-                else:
+                # Update text based on the number of fingers detected
+                if l == 1:
                     text = '1'
-            elif l == 2:
-                text = '2'
-            elif l == 3:
-                text = '3'
-            elif l == 4:
-                text = '4'
-            elif l == 5:
-                text = '5'
-            # 根據檢測到的手勢顯示相應的數字或信息
-            cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
+                elif l == 2:
+                    text = '2'
 
+        cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
