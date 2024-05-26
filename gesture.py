@@ -91,11 +91,11 @@ def gen_frames():
                     if angle <= 90:
                         num_defects += 1
 
-                if num_defects == 0:
+                if num_defects == 0 or num_defects == 1:
                     text = 'Rock'
                 elif num_defects == 2:
                     text = 'Scissors'
-                elif num_defects >= 4:
+                elif num_defects >= 3:
                     text = 'Paper'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
