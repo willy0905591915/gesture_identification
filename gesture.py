@@ -54,7 +54,7 @@ def gen_frames():
 
         # 手横向伸入，增加ROI宽度
         roi_width = 300  # 根据实际情况调整
-        roi_height = 200  # 根据手部大小调整
+        roi_height = 300  # 根据手部大小调整
         roi_x_start = center_x - roi_width // 2
         roi_y_start = center_y - roi_height // 2
 
