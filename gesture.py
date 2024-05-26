@@ -62,7 +62,53 @@ def gen_frames():
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
         text = "No gesture detected"  # Default text
-        # Existing logic for gesture recognition
+        
+        if len(contours) > 0:
+            cnt = max(contours, key=cv2.contourArea)
+            approx = cv2.approxPolyDP(cnt, 0.0005 * cv2.arcLength(cnt, True), True)
+            hull = cv2.convexHull(cnt)
+            areahull = cv2.contourArea(hull)
+            areacnt = cv2.contourArea(cnt)
+            arearatio = ((areahull - areacnt) / areacnt) * 100
+            hull = cv2.convexHull(approx, returnPoints=False)
+            defects = cv2.convexityDefects(approx, hull)
+            l = 0
+            
+            if defects is not None:
+                for i in range(defects.shape[0]):
+                    s, e, f, d = defects[i, 0]
+                    start = tuple(approx[s][0])
+                    end = tuple(approx[e][0])
+                    far = tuple(approx[f][0])
+                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
+                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
+                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
+                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
+
+                    if angle <= 90:
+                        l += 1
+                        cv2.circle(roi, far, 3, [255, 0, 0], -1)
+                    
+                    cv2.line(roi, start, end, [0, 255, 0], 2)
+                
+            # 根據手指數目顯示不同的信息
+            if l == 1:
+                if arearatio < 12:
+                    text = '0'
+                elif arearatio < 17.5:
+                    text = 'Best of luck'
+                else:
+                    text = '1'
+            elif l == 2:
+                text = '2'
+            elif l == 3:
+                text = '3'
+            elif l == 4:
+                text = '4'
+            elif l == 5:
+                text = '5'
+            # 根據檢測到的手勢顯示相應的數字或信息
+            cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
 
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
