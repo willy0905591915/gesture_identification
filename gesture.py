@@ -52,9 +52,9 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # 手横向伸入，增加ROI宽度
-        roi_width = 300  # 根据实际情况调整
-        roi_height = 250  # 根据手部大小调整
+        # Define the ROI
+        roi_width = 300  # Adjust based on your setup
+        roi_height = 250  # Adjust based on your setup
         roi_x_start = center_x - roi_width // 2
         roi_y_start = center_y - roi_height // 2
 
@@ -79,6 +79,14 @@ def gen_frames():
             hull = cv2.convexHull(approx, returnPoints=False)
             defects = cv2.convexityDefects(approx, hull)
 
+            # Draw the contour and hull in the ROI
+            for point in approx:
+                cv2.circle(roi, tuple(point[0]), 5, (255, 0, 0), -1)
+            for i in range(len(hull)):
+                start_hull = hull[i][0]
+                end_hull = hull[(i + 1) % len(hull)][0]
+                cv2.line(roi, tuple(approx[start_hull][0]), tuple(approx[end_hull][0]), (0, 255, 0), 2)
+
             if defects is not None:
                 num_defects = 0
                 for i in range(defects.shape[0]):
@@ -86,10 +94,11 @@ def gen_frames():
                     start = tuple(approx[s][0])
                     end = tuple(approx[e][0])
                     far = tuple(approx[f][0])
-                    angle = math.acos(min(1,max(-1, (np.linalg.norm(np.subtract(start, far))**2 + np.linalg.norm(np.subtract(end, far))**2 - np.linalg.norm(np.subtract(start, end))**2) / (2 * np.linalg.norm(np.subtract(start, far)) * np.linalg.norm(np.subtract(end, far)))))) * 57
+                    angle = math.acos(min(1, max(-1, (np.linalg.norm(np.subtract(start, far))**2 + np.linalg.norm(np.subtract(end, far))**2 - np.linalg.norm(np.subtract(start, end))**2) / (2 * np.linalg.norm(np.subtract(start, far)) * np.linalg.norm(np.subtract(end, far)))))) * 57
                     
                     if angle <= 90:
                         num_defects += 1
+                        cv2.circle(roi, far, 5, (0, 0, 255), -1)  # Draw defects points
 
                 if num_defects == 0 or num_defects == 1:
                     text = 'Rock'
