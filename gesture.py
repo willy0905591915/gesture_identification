@@ -52,15 +52,21 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
-        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
+        # Adjust the ROI to be larger and slightly to the right
+        roi_x_start = center_x  # Start from the center and move to the right
+        roi_y_start = center_y - 200  # Start 200 pixels above the center
+        roi_width = 400  # Width of the ROI
+        roi_height = 400  # Height of the ROI
+
+        roi = img[roi_y_start:roi_y_start + roi_height, roi_x_start:roi_x_start + roi_width]
+        cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         lower_skin = np.array([0, 48, 80], dtype=np.uint8)  # Adjusted HSV values for better skin detection
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
-        mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=5)  # Increased dilation
+        mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
 
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
