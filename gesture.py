@@ -52,9 +52,9 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # 设置ROI
-        roi_width = 300  # 调整以适应你的摄像头和手势大小
-        roi_height = 250
+        # Define the ROI
+        roi_width = 300  # Adjust based on your setup
+        roi_height = 250  # Adjust based on your setup
         roi_x_start = center_x - roi_width // 2
         roi_y_start = center_y - roi_height // 2
 
@@ -62,7 +62,7 @@ def gen_frames():
         cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 2)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
 
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
@@ -76,32 +76,36 @@ def gen_frames():
             cnt = max(contours, key=lambda x: cv2.contourArea(x))
             epsilon = 0.0005 * cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, epsilon, True)
-            hull = cv2.convexHull(approx, returnPoints=True)
-            defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
+            hull = cv2.convexHull(approx, returnPoints=False)
+            defects = cv2.convexityDefects(approx, hull)
 
-            large_gaps = 0
-            small_gaps = 0
+            # Draw the contour and hull in the ROI
+            for point in approx:
+                cv2.circle(roi, tuple(point[0]), 5, (255, 0, 0), -1)
+            for i in range(len(hull)):
+                start_hull = hull[i][0]
+                end_hull = hull[(i + 1) % len(hull)][0]
+                cv2.line(roi, tuple(approx[start_hull][0]), tuple(approx[end_hull][0]), (0, 255, 0), 2)
+
             if defects is not None:
+                num_defects = 0
                 for i in range(defects.shape[0]):
                     s, e, f, d = defects[i, 0]
                     start = tuple(approx[s][0])
                     end = tuple(approx[e][0])
                     far = tuple(approx[f][0])
-                    # Visualize defects
-                    cv2.circle(roi, far, 5, (255, 0, 0), -1)
-                    cv2.line(roi, start, end, (0, 255, 0), 2)
+                    angle = math.acos(min(1, max(-1, (np.linalg.norm(np.subtract(start, far))**2 + np.linalg.norm(np.subtract(end, far))**2 - np.linalg.norm(np.subtract(start, end))**2) / (2 * np.linalg.norm(np.subtract(start, far)) * np.linalg.norm(np.subtract(end, far)))))) * 57
+                    
+                    if angle <= 90:
+                        num_defects += 1
+                        cv2.circle(roi, far, 5, (0, 0, 255), -1)  # Draw defects points
 
-                    if d > 10000:  # Threshold for large gaps
-                        large_gaps += 1
-                    else:
-                        small_gaps += 1
-
-                if large_gaps == 1 and small_gaps < 3:
-                    text = 'Scissors'
-                elif small_gaps >= 3:
-                    text = 'Paper'
-                else:
+                if num_defects == 0 or num_defects == 1:
                     text = 'Rock'
+                elif num_defects == 2:
+                    text = 'Scissors'
+                elif num_defects >= 3:
+                    text = 'Paper'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
