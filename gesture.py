@@ -38,14 +38,13 @@ output = StreamingOutput()
 cascade_path = "haarcascade_frontalface_default.xml"  # 使用實際的路徑
 face_cascade = cv2.CascadeClassifier(cascade_path)
 
-def adjust_color_balance(img, increase_saturation=True):
-    if increase_saturation:
-        # 轉換到 HSV 色彩空間增強飽和度
-        hsv = cv2.cvtColor(img, cv2.COLOR_BGR2HSV)
-        h, s, v = cv2.split(hsv)
-        s = cv2.add(s, 50)  # 增加飽和度
-        hsv = cv2.merge([h, s, v])
-        img = cv2.cvtColor(hsv, cv2.COLOR_HSV2BGR)
+def simple_white_balance(img):
+    result = cv2.cvtColor(img, cv2.COLOR_BGR2LAB)
+    avg_a = np.average(result[:, :, 1])
+    avg_b = np.average(result[:, :, 2])
+    result[:, :, 1] = result[:, :, 1] - ((avg_a - 128) * (result[:, :, 0] / 255.0) * 1.1)
+    result[:, :, 2] = result[:, :, 2] - ((avg_b - 128) * (result[:, :, 0] / 255.0) * 1.1)
+    img = cv2.cvtColor(result, cv2.COLOR_LAB2BGR)
     return img
 
 def gen_frames():
@@ -57,17 +56,17 @@ def gen_frames():
         # 將 JPEG 轉換為 OpenCV 圖像
         img = cv2.imdecode(np.frombuffer(frame, dtype=np.uint8), cv2.IMREAD_COLOR)
         
-        # 調整色彩平衡以改善紫色調
-        img = adjust_color_balance(img, increase_saturation=True)
+        # 白平衡調整
+        img = simple_white_balance(img)
 
         # 定義感興趣區域並調整到視窗中間
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
         roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
         
-        # 更精確的皮膚顏色範圍調整
+        # 皮膚顏色範圍可能需要重新調整
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 50, 80], dtype=np.uint8)  # 更新飽和度和亮度閾值
+        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
