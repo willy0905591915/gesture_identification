@@ -52,14 +52,18 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # Initialize text variable with a default value
-        text = "No gesture detected"
+        # Increase the size of the ROI
+        roi_size = 300  # Adjust this value as needed to capture the full hand
+        roi_x_start = center_x - roi_size
+        roi_y_start = center_y - roi_size
+        roi_width = roi_size * 2
+        roi_height = roi_size * 2
 
-        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
-        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
+        roi = img[roi_y_start:roi_y_start + roi_height, roi_x_start:roi_x_start + roi_width]
+        cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 2)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
+        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
@@ -67,7 +71,8 @@ def gen_frames():
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
 
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
-        
+
+        text = "No gesture detected"
         if len(contours) > 0:
             cnt = max(contours, key=lambda x: cv2.contourArea(x))
             epsilon = 0.0005 * cv2.arcLength(cnt, True)
@@ -101,6 +106,7 @@ def gen_frames():
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 
 @app.route("/", methods=['GET'])
 def get_stream_html():
