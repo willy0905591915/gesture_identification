@@ -104,7 +104,7 @@ def gen_frames():
                     text = 'Rock'
                 elif num_defects == 2:
                     text = 'Scissors'
-                elif num_defects >= 3:
+                elif num_defects >= 4:
                     text = 'Paper'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
