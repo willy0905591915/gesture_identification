@@ -56,11 +56,11 @@ def gen_frames():
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)  # Adjusted HSV values for better skin detection
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
-        mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
+        mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=5)  # Increased dilation
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
 
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
@@ -87,28 +87,6 @@ def gen_frames():
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
-
-
-@app.route("/", methods=['GET'])
-def get_stream_html():
-    return render_template_string(template)
-
-@app.route('/api/stream')
-def video_stream():
-    return Response(gen_frames(), mimetype='multipart/x-mixed-replace; boundary=frame')
-
-if __name__ == "__main__":
-    cam = Picamera2()
-    config = cam.create_video_configuration(
-        {'size': (1920, 1080), 'format': 'XBGR8888'},
-        transform=Transform(vflip=1),
-        controls={'NoiseReductionMode': controls.draft.NoiseReductionModeEnum.HighQuality, 'Sharpness': 1.5}
-    )
-    cam.configure(config)
-    cam.start_recording(JpegEncoder(), FileOutput(output), Quality.VERY_HIGH)
-    app.run(host='0.0.0.0')
-    cam.stop()
 
 
 @app.route("/", methods=['GET'])
