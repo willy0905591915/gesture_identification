@@ -96,9 +96,9 @@ def gen_frames():
                     else:
                         small_gaps += 1
 
-                if large_gaps == 1 and small_gaps < 2:
+                if large_gaps == 1 and small_gaps < 3:
                     text = 'Scissors'
-                elif small_gaps >= 2:
+                elif small_gaps >= 3:
                     text = 'Paper'
                 else:
                     text = 'Rock'
