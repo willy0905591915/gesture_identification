@@ -55,16 +55,15 @@ def gen_frames():
 
         # 將 JPEG 轉換為 OpenCV 圖像
         img = cv2.imdecode(np.frombuffer(frame, dtype=np.uint8), cv2.IMREAD_COLOR)
-        
-        # 白平衡調整
+
+        # 白平衡調整（如果已實施白平衡函數）
         img = simple_white_balance(img)
 
         # 定義感興趣區域並調整到視窗中間
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
         roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
-        
-        # 皮膚顏色範圍可能需要重新調整
+
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         lower_skin = np.array([0, 20, 70], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
@@ -72,20 +71,18 @@ def gen_frames():
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
         mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
-        
-        # 尋找輪廓
+
+        # 尋找輪廓和手部分析
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         
+        text = "No gesture detected"  # 預設文字
         if len(contours) > 0:
             cnt = max(contours, key=cv2.contourArea)
             approx = cv2.approxPolyDP(cnt, 0.0005 * cv2.arcLength(cnt, True), True)
             hull = cv2.convexHull(cnt)
-            
-            # 計算凸包和手部區域的面積比
             areahull = cv2.contourArea(hull)
             areacnt = cv2.contourArea(cnt)
             arearatio = ((areahull - areacnt) / areacnt) * 100
-
             hull = cv2.convexHull(approx, returnPoints=False)
             defects = cv2.convexityDefects(approx, hull)
             l = 0
@@ -106,25 +103,17 @@ def gen_frames():
                         cv2.circle(roi, far, 3, [255, 0, 0], -1)
                     
                     cv2.line(roi, start, end, [0, 255, 0], 2)
-                
-            # 根據手指數目顯示不同的信息
-            if l == 1:
-                if arearatio < 12:
-                    text = '0'
-                elif arearatio < 17.5:
-                    text = 'Best of luck'
-                else:
-                    text = '1'
-            elif l == 2:
-                text = '2'
-            # 根據檢測到的手勢顯示相應的數字或信息
-            cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
+                    
+            if l > 0:
+                text = f"{l} fingers detected"  # 更新文字信息
+
+        # 在圖像上顯示文字
+        cv2.putText(img, text, (10, 60), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3)
 
         # 重新編碼為 JPEG 並生成數據流
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 
 
 @app.route("/", methods=['GET'])
