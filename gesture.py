@@ -80,6 +80,10 @@ def gen_frames():
                     start = tuple(approx[s][0])
                     end = tuple(approx[e][0])
                     far = tuple(approx[f][0])
+                    # Visualize defects
+                    cv2.line(roi, start, end, (0, 255, 0), 2)
+                    cv2.circle(roi, far, 5, (0, 0, 255), -1)
+
                     a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
                     b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
                     c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
@@ -99,6 +103,7 @@ def gen_frames():
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 
 
 
