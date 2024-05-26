@@ -56,7 +56,7 @@ def gen_frames():
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 2)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
 
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
@@ -70,39 +70,37 @@ def gen_frames():
             cnt = max(contours, key=lambda x: cv2.contourArea(x))
             epsilon = 0.0005 * cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, epsilon, True)
-            hull = cv2.convexHull(approx, returnPoints=False)
-            defects = cv2.convexityDefects(approx, hull)
-            areahull = cv2.contourArea(hull)
-            areacnt = cv2.contourArea(cnt)
-            arearatio = (areahull - areacnt) / areacnt * 100  # Additional metric to help differentiate gestures
+            if len(approx) > 0:
+                hull = cv2.convexHull(approx, returnPoints=True)
+                if len(hull) > 0:
+                    areahull = cv2.contourArea(hull)
+                    areacnt = cv2.contourArea(cnt)
+                    arearatio = (areahull - areacnt) / areacnt * 100
+                    defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
 
-            if defects is not None:
-                num_defects = 0
-                for i in range(defects.shape[0]):
-                    s, e, f, d = defects[i, 0]
-                    start = tuple(approx[s][0])
-                    end = tuple(approx[e][0])
-                    far = tuple(approx[f][0])
-                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
-                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
-                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
-                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
-                    
-                    if angle <= 90:
-                        num_defects += 1
+                    if defects is not None:
+                        num_defects = 0
+                        for i in range(defects.shape[0]):
+                            s, e, f, d = defects[i, 0]
+                            start = tuple(approx[s][0])
+                            end = tuple(approx[e][0])
+                            far = tuple(approx[f][0])
+                            angle = math.acos(min(1, max(-1, (np.linalg.norm(np.subtract(start, far))**2 + np.linalg.norm(np.subtract(end, far))**2 - np.linalg.norm(np.subtract(start, end))**2) / (2 * np.linalg.norm(np.subtract(start, far)) * np.linalg.norm(np.subtract(end, far)))))) * 57
 
-                if num_defects == 0 or num_defects == 1:
-                    text = 'Rock'
-                elif num_defects == 2 and arearatio < 50:
-                    text = 'Scissors'  # Assume Scissors if there are two defects and area ratio is low
-                elif num_defects > 2 or arearatio > 50:
-                    text = 'Paper'  # Assume Paper if there are more than two defects or area ratio is high
+                            if angle <= 90:
+                                num_defects += 1
+
+                        if num_defects == 0 or num_defects == 1:
+                            text = 'Rock'
+                        elif num_defects == 2:
+                            text = 'Scissors'
+                        elif num_defects >= 3:
+                            text = 'Paper'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 
 
 
