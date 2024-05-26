@@ -100,9 +100,9 @@ def gen_frames():
                         num_defects += 1
                         cv2.circle(roi, far, 5, (0, 0, 255), -1)  # Draw defects points
 
-                if num_defects == 0 or num_defects == 1:
+                if num_defects == 0:
                     text = 'Rock'
-                elif num_defects == 2:
+                elif num_defects == 1 or num_defects == 2:
                     text = 'Scissors'
                 elif num_defects >= 3:
                     text = 'Paper'
