@@ -52,9 +52,9 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # Adjust the region of interest to the left side of the frame
-        roi = img[center_y-150:center_y+150, 50:350]
-        cv2.rectangle(img, (50, center_y-150), (350, center_y+150), (0, 255, 0), 0)
+        # Adjust the region of interest
+        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
+        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
         lower_skin = np.array([0, 20, 70], dtype=np.uint8)
@@ -66,36 +66,19 @@ def gen_frames():
 
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
 
-        text = "No gesture detected"  # Default text if no contours found
+        text = "No gesture detected"
         if len(contours) > 0:
             cnt = max(contours, key=cv2.contourArea)
-            approx = cv2.approxPolyDP(cnt, 0.0005 * cv2.arcLength(cnt, True), True)
             hull = cv2.convexHull(cnt)
-            defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
-            l = 0
-            
+            defects = cv2.convexityDefects(cv2.convexHull(cnt), hull)
             if defects is not None:
-                for i in range(defects.shape[0]):
-                    s, e, f, d = defects[i, 0]
-                    start = tuple(approx[s][0])
-                    end = tuple(approx[e][0])
-                    far = tuple(approx[f][0])
-                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
-                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
-                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
-                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
-
-                    if angle <= 90:
-                        l += 1
-                        cv2.circle(roi, far, 3, [255, 0, 0], -1)
-                    
-                    cv2.line(roi, start, end, [0, 255, 0], 2)
-                
-                # Update text based on the number of fingers detected
-                if l == 1:
-                    text = '1'
-                elif l == 2:
-                    text = '2'
+                num_defects = len(defects)
+                if num_defects > 3:
+                    text = 'Paper'
+                elif num_defects == 2:
+                    text = 'Scissors'
+                else:
+                    text = 'Rock'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
