@@ -52,11 +52,17 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
-        cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 2)
+        # 设置ROI
+        roi_width = 300  # 调整以适应你的摄像头和手势大小
+        roi_height = 250
+        roi_x_start = center_x - roi_width // 2
+        roi_y_start = center_y - roi_height // 2
+
+        roi = img[roi_y_start:roi_y_start + roi_height, roi_x_start:roi_x_start + roi_width]
+        cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 2)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
+        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
 
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
@@ -73,33 +79,34 @@ def gen_frames():
             hull = cv2.convexHull(approx, returnPoints=True)
             defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
 
-            num_defects = 0
+            large_gaps = 0
+            small_gaps = 0
             if defects is not None:
                 for i in range(defects.shape[0]):
                     s, e, f, d = defects[i, 0]
                     start = tuple(approx[s][0])
                     end = tuple(approx[e][0])
                     far = tuple(approx[f][0])
-                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
-                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
-                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
-                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
-                    
-                    if angle < 60:  # Adjust the angle threshold here
-                        num_defects += 1
+                    # Visualize defects
+                    cv2.circle(roi, far, 5, (255, 0, 0), -1)
+                    cv2.line(roi, start, end, (0, 255, 0), 2)
 
-            if num_defects == 0 or num_defects == 1:
-                text = 'Rock'
-            elif num_defects == 2:
-                text = 'Scissors'
-            elif num_defects > 2:
-                text = 'Paper'
+                    if d > 10000:  # Threshold for large gaps
+                        large_gaps += 1
+                    else:
+                        small_gaps += 1
+
+                if large_gaps == 1 and small_gaps < 2:
+                    text = 'Scissors'
+                elif small_gaps >= 2:
+                    text = 'Paper'
+                else:
+                    text = 'Rock'
 
         cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
-
 
 
 
