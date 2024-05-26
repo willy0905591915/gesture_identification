@@ -62,7 +62,7 @@ def gen_frames():
         cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 48, 80], dtype=np.uint8)  # Adjusted HSV values for better skin detection
+        lower_skin = np.array([0, 20, 70], dtype=np.uint8)  # Adjusted HSV values for better skin detection
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
