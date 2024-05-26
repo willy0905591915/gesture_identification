@@ -51,17 +51,21 @@ def gen_frames():
         img = cv2.imdecode(np.frombuffer(frame, dtype=np.uint8), cv2.IMREAD_COLOR)
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
+
+        # Initialize text variable with a default value
+        text = "No gesture detected"
+
         roi = img[center_y-150:center_y+150, center_x-150:center_x+150]
         cv2.rectangle(img, (center_x-150, center_y-150), (center_x+150, center_y+150), (0, 255, 0), 0)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
         
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
         mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
-        
+
         contours, _ = cv2.findContours(mask, cv2.RETR_TREE, cv2.CHAIN_APPROX_SIMPLE)
         
         if len(contours) > 0:
@@ -92,8 +96,8 @@ def gen_frames():
                     text = 'Scissors'
                 elif num_defects >= 4:
                     text = 'Paper'
-                cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
-        
+
+        cv2.putText(img, text, (10, 50), cv2.FONT_HERSHEY_SIMPLEX, 2, (0, 0, 255), 3, cv2.LINE_AA)
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
