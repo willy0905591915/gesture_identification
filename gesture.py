@@ -52,20 +52,19 @@ def gen_frames():
         img = simple_white_balance(img)
         center_x, center_y = img.shape[1] // 2, img.shape[0] // 2
 
-        # Increase the size of the ROI
-        roi_size = 300  # Adjust this value as needed to capture the full hand
-        roi_x_start = center_x - roi_size
-        roi_y_start = center_y - roi_size
-        roi_width = roi_size * 2
-        roi_height = roi_size * 2
+        # 手横向伸入，增加ROI宽度
+        roi_width = 300  # 根据实际情况调整
+        roi_height = 200  # 根据手部大小调整
+        roi_x_start = center_x - roi_width // 2
+        roi_y_start = center_y - roi_height // 2
 
         roi = img[roi_y_start:roi_y_start + roi_height, roi_x_start:roi_x_start + roi_width]
         cv2.rectangle(img, (roi_x_start, roi_y_start), (roi_x_start + roi_width, roi_y_start + roi_height), (0, 255, 0), 2)
 
         hsv = cv2.cvtColor(roi, cv2.COLOR_BGR2HSV)
-        lower_skin = np.array([0, 20, 70], dtype=np.uint8)
+        lower_skin = np.array([0, 48, 80], dtype=np.uint8)
         upper_skin = np.array([20, 255, 255], dtype=np.uint8)
-        
+
         mask = cv2.inRange(hsv, lower_skin, upper_skin)
         mask = cv2.dilate(mask, np.ones((3,3), np.uint8), iterations=4)
         mask = cv2.GaussianBlur(mask, (5, 5), 100)
@@ -77,9 +76,9 @@ def gen_frames():
             cnt = max(contours, key=lambda x: cv2.contourArea(x))
             epsilon = 0.0005 * cv2.arcLength(cnt, True)
             approx = cv2.approxPolyDP(cnt, epsilon, True)
-            hull = cv2.convexHull(cnt)
-            defects = cv2.convexityDefects(approx, cv2.convexHull(approx, returnPoints=False))
-            
+            hull = cv2.convexHull(approx, returnPoints=False)
+            defects = cv2.convexityDefects(approx, hull)
+
             if defects is not None:
                 num_defects = 0
                 for i in range(defects.shape[0]):
@@ -87,14 +86,11 @@ def gen_frames():
                     start = tuple(approx[s][0])
                     end = tuple(approx[e][0])
                     far = tuple(approx[f][0])
-                    a = math.sqrt((end[0] - start[0])**2 + (end[1] - start[1])**2)
-                    b = math.sqrt((far[0] - start[0])**2 + (far[1] - start[1])**2)
-                    c = math.sqrt((end[0] - far[0])**2 + (end[1] - far[1])**2)
-                    angle = math.acos((b**2 + c**2 - a**2) / (2 * b * c)) * 57
-
+                    angle = math.acos(min(1,max(-1, (np.linalg.norm(np.subtract(start, far))**2 + np.linalg.norm(np.subtract(end, far))**2 - np.linalg.norm(np.subtract(start, end))**2) / (2 * np.linalg.norm(np.subtract(start, far)) * np.linalg.norm(np.subtract(end, far)))))) * 57
+                    
                     if angle <= 90:
                         num_defects += 1
-                
+
                 if num_defects == 0:
                     text = 'Rock'
                 elif num_defects == 2:
@@ -106,6 +102,7 @@ def gen_frames():
         _, jpeg = cv2.imencode('.jpg', img)
         frame = jpeg.tobytes()
         yield (b'--frame\r\nContent-Type: image/jpeg\r\n\r\n' + frame + b'\r\n')
+
 
 
 @app.route("/", methods=['GET'])
